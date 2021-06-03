@@ -1,5 +1,7 @@
 import './LoginForm.css'
-import { useState, useEffect, useReducer } from "react";
+import { useState, useEffect, useReducer, useContext, useRef } from "react";
+import AuthContext from '../store/auth-context';
+import Input from '../UI/Input';
 
 const emailReducer = (state, action) => {
     if(action.type === "User_Input") {
@@ -24,6 +26,11 @@ const passwordReducer = (state, action) => {
 
 const LoginForm = props => {
 
+    const authContext = useContext(AuthContext);
+
+    const emailInputRef = useRef();
+    const passwordInputRef = useRef();
+
     // const [emailInput, setEmailInput] = useState(""); // now with useReducer to manage both of these
     // const [emailValid, setEmailValid] = useState(true);
     // const [passwordInput, setPasswordInput] = useState("");
@@ -31,8 +38,8 @@ const LoginForm = props => {
 
     const [formIsValid, setFormIsValid] = useState(false);
 
-    const [passwordState, dispatchPassword] = useReducer(passwordReducer, {value: "", isValid: false});
-    const [emailState, dispatchEmail] = useReducer(emailReducer, {value: "", isValid: false});
+    const [passwordState, dispatchPassword] = useReducer(passwordReducer, {value: "", isValid: null});
+    const [emailState, dispatchEmail] = useReducer(emailReducer, {value: "", isValid: null});
 
     const { isValid: emailIsValid } = emailState; // pull out the isValid assigned to an alias in destructuring
     const { isValid: passwordIsValid } = passwordState; // to get the current isValid states to be used in useEffect, the isValid state is what is needed here
@@ -47,12 +54,20 @@ const LoginForm = props => {
             console.log("Clean up, running after first Check validity on input");
             clearTimeout(timerIdentifier); // clear the last time before a new one is set, creates a 500ms wait in the input
         }; // this will run after the first use effect runs and before it runs again, every new side effect
-    }, [emailIsValid, passwordIsValid]);
+    }, [emailIsValid, passwordIsValid]); // setFormIsValid is not neccessary to add here as it is something that does not change
 
 
     const loginHandler = (e) => {
         e.preventDefault();
-        props.login(emailState.value, passwordState.value);
+        if(formIsValid) {
+            authContext.onLogin(emailState.value, passwordState.value);
+        } else if(!emailIsValid) {
+            // is the email invalid, it is the first input on the form
+            emailInputRef.current.focus();
+        } else {
+            // password invalid on submit attempt and show it is invalid
+            passwordInputRef.current.focus();
+        }
     }
 
     const emailChangeHandler = (e) => {
@@ -91,19 +106,26 @@ const LoginForm = props => {
         <div className="row container login-form">
             <form className="col s12" onSubmit={loginHandler}>
                 <div className="row">
-                    <div className={`${emailState.isValid ? "input-field col s12": "error input-field col s12"}`}>
-                        <input onBlur={validateEmailHandler} value={emailState.value.value} onChange={emailChangeHandler} id="email" type="email" className="validate" />
-                            <label htmlFor="email">Email</label>
-                    </div>
+                    <Input
+                        ref={emailInputRef}
+                        id="email"
+                        label="Email" type="email"
+                        isValid={!emailIsValid}
+                        value={emailState.value.value}
+                        onChange={emailChangeHandler}
+                        onBlur={validateEmailHandler}/>
                 </div>
                 <div className="row">
-                    <div className={`${passwordState.isValid ? "input-field col s12" : "error input-field col s12"}`}>
-                        <input onBlur={validatePasswordHandler} value={passwordState.value.value} onChange={passwordChangeHandler} id="password" type="password" className="validate" />
-                            <label htmlFor="password">Password</label>
-                    </div>
+                    <Input
+                        ref={passwordInputRef}
+                        id="password"
+                        label="Password" type="password"
+                        isValid={!passwordIsValid}
+                        value={passwordState.value.value}
+                        onChange={passwordChangeHandler}
+                        onBlur={validatePasswordHandler}/>
                 </div>
                 <button
-                    disabled = {!formIsValid}
                     className="btn">Login</button>
             </form>
         </div>
